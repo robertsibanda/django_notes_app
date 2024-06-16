@@ -15,21 +15,38 @@ from .models import Note
 
 @api_view(["POST"])
 def login(request, *args, **kwargs):
-    user = get_object_or_404(User, username=request.data['username'])
-    if not user.check_password(request.data['password']):
-        return Response({"error": "user not found"})
+   
+    try:
+        # for react frontend 
+        userdata = request.data['body']
+        username = userdata['username']
+        password = userdata['password']
 
-    token, created = Token.objects.get_or_create(user=user)
-    return Response({"token": token.key})
+        user = get_object_or_404(User, username=username)
+        if not user.check_password(password):
+            return Response({"error": "user not found"})
+
+        token, created = Token.objects.get_or_create(user=user)
+        return Response({"token": token.key})
+    except KeyError:
+        print(request.data['body']['username'])
+        return Response({"error" : "missing request data"})
 
 
 @api_view(["POST"])
 def signup(request, *args, **kwargs):
-    serializer = UserSerializer(data=request.data)
+    userdata = request.data['body']
+
+    data = {'username' :userdata['username'],
+            'password' : userdata['password'],
+            'email' :userdata['email']}
+
+    serializer = UserSerializer(data=data)
     if serializer.is_valid(raise_exception=True):
         serializer.save()
-        user = User.objects.get(username=request.data['username'])
-        user.set_password(request.data['password'])
+        username = data['username']
+        user = User.objects.get(username=username)
+        user.set_password(data['password'])
         user.save()
         token = Token.objects.create(user=user)
         return Response({"token": token.key})
@@ -74,8 +91,8 @@ note_delete_view = NoteDeleteView.as_view()
 class NoteUpdateView(generics.UpdateAPIView):
     queryset = Note.objects.all()
     serializer_class = NoteSerializer
-
-
+    
+    
 note_update_view = NoteUpdateView.as_view()
 
 
